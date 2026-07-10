@@ -60,7 +60,7 @@ npm install -g google-workspace-alias-mcp
 ### Manual Installation
 
 ```bash
-git clone https://github.com/johndelapena168/google-workspace-mcp.git
+git clone https://github.com/johndelapena168/google-workspace-alias-mcp.git
 cd google-workspace-mcp
 npm install
 ```
@@ -390,7 +390,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ### Development Setup
 
 ```bash
-git clone https://github.com/johndelapena168/google-workspace-mcp.git
+git clone https://github.com/johndelapena168/google-workspace-alias-mcp.git
 cd google-workspace-mcp
 npm install
 npm start
