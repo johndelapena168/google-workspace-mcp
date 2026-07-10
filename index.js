@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename);
 const CONFIG_DIR = path.join(process.env.HOME || process.env.USERPROFILE, ".google-workspace-mcp");
 const OAUTH_KEYS_FILE = path.join(CONFIG_DIR, "gcp-oauth.keys.json");
 const CREDENTIALS_FILE = path.join(CONFIG_DIR, "credentials.json");
+const TEMPLATES_FILE = path.join(CONFIG_DIR, "templates.json");
 
 // Scopes for Gmail + Calendar
 const SCOPES = [
@@ -33,6 +34,33 @@ const SCOPES = [
 // Ensure config directory exists
 if (!fs.existsSync(CONFIG_DIR)) {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
+
+// Load or initialize templates
+function loadTemplates() {
+  if (fs.existsSync(TEMPLATES_FILE)) {
+    return JSON.parse(fs.readFileSync(TEMPLATES_FILE, "utf8"));
+  }
+  // Copy default templates from package
+  const defaultTemplates = path.join(__dirname, "templates.json");
+  if (fs.existsSync(defaultTemplates)) {
+    const templates = JSON.parse(fs.readFileSync(defaultTemplates, "utf8"));
+    fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(templates, null, 2));
+    return templates;
+  }
+  return {};
+}
+
+function saveTemplates(templates) {
+  fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(templates, null, 2));
+}
+
+function applyTemplate(template, variables) {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`{{${key}}}`, "g"), value);
+  }
+  return result;
 }
 
 class GoogleWorkspaceMCP {
@@ -433,6 +461,145 @@ class GoogleWorkspaceMCP {
           required: ["timeMin", "timeMax"],
         },
       },
+      // Template tools
+      {
+        name: "list_templates",
+        description: "List all available email templates",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "get_template",
+        description: "Get a specific template by name",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Template name",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "create_template",
+        description: "Create a new email template with variables (use {{variable}} syntax)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Template name (used as ID)",
+            },
+            displayName: {
+              type: "string",
+              description: "Human-readable template name",
+            },
+            subject: {
+              type: "string",
+              description: "Email subject template (use {{variable}} for variables)",
+            },
+            body: {
+              type: "string",
+              description: "Email body template (use {{variable}} for variables)",
+            },
+          },
+          required: ["name", "displayName", "subject", "body"],
+        },
+      },
+      {
+        name: "send_template_email",
+        description: "Send an email using a template with variables",
+        inputSchema: {
+          type: "object",
+          properties: {
+            template: {
+              type: "string",
+              description: "Template name to use",
+            },
+            to: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              minItems: 1,
+              description: "List of recipient email addresses",
+            },
+            variables: {
+              type: "object",
+              description: "Variables to replace in template (e.g., {\"name\": \"John\", \"meeting_name\": \"Project Review\"})",
+            },
+            from: {
+              type: "string",
+              description: "Send-as alias email address",
+            },
+            cc: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              description: "List of CC recipients",
+            },
+            bcc: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              description: "List of BCC recipients",
+            },
+          },
+          required: ["template", "to", "variables"],
+        },
+      },
+      // Scheduled send tools
+      {
+        name: "send_scheduled_email",
+        description: "Schedule an email to be sent at a specific time",
+        inputSchema: {
+          type: "object",
+          properties: {
+            to: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              minItems: 1,
+              description: "List of recipient email addresses",
+            },
+            subject: {
+              type: "string",
+              minLength: 1,
+              description: "Email subject",
+            },
+            body: {
+              type: "string",
+              description: "Email body content",
+            },
+            htmlBody: {
+              type: "string",
+              description: "HTML version of the email body",
+            },
+            from: {
+              type: "string",
+              description: "Send-as alias email address",
+            },
+            scheduledTime: {
+              type: "string",
+              description: "Scheduled send time (ISO format, e.g., '2026-07-15T09:00:00')",
+            },
+            timezone: {
+              type: "string",
+              description: "Timezone for scheduled time (e.g., 'America/New_York')",
+            },
+            cc: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              description: "List of CC recipients",
+            },
+            bcc: {
+              type: "array",
+              items: { type: "string", format: "email" },
+              description: "List of BCC recipients",
+            },
+          },
+          required: ["to", "subject", "body", "scheduledTime"],
+        },
+      },
     ];
   }
 
@@ -594,6 +761,21 @@ class GoogleWorkspaceMCP {
 
         case "get_freebusy":
           return this.formatResult(await this.getFreeBusy(args));
+
+        case "list_templates":
+          return this.formatResult(await this.listTemplates());
+
+        case "get_template":
+          return this.formatResult(await this.getTemplate(args.name));
+
+        case "create_template":
+          return this.formatResult(await this.createTemplate(args));
+
+        case "send_template_email":
+          return this.formatResult(await this.sendTemplateEmail(args));
+
+        case "send_scheduled_email":
+          return this.formatResult(await this.sendScheduledEmail(args));
 
         default:
           throw new Error(`Unknown tool: ${name}`);
@@ -941,6 +1123,108 @@ class GoogleWorkspaceMCP {
     });
 
     return response.data.calendars;
+  }
+
+  // ============ TEMPLATE METHODS ============
+
+  async listTemplates() {
+    const templates = loadTemplates();
+    return Object.entries(templates).map(([key, value]) => ({
+      id: key,
+      name: value.name,
+    }));
+  }
+
+  async getTemplate(name) {
+    const templates = loadTemplates();
+    const template = templates[name];
+    if (!template) {
+      throw new Error(`Template '${name}' not found`);
+    }
+    return { id: name, ...template };
+  }
+
+  async createTemplate(args) {
+    const templates = loadTemplates();
+    templates[args.name] = {
+      name: args.displayName,
+      subject: args.subject,
+      body: args.body,
+    };
+    saveTemplates(templates);
+    return { success: true, message: `Template '${args.name}' created` };
+  }
+
+  async sendTemplateEmail(args) {
+    this.ensureAuthenticated();
+
+    const templates = loadTemplates();
+    const template = templates[args.template];
+    if (!template) {
+      throw new Error(`Template '${args.template}' not found`);
+    }
+
+    // Apply variables to template
+    const subject = applyTemplate(template.subject, args.variables);
+    const body = applyTemplate(template.body, args.variables);
+
+    // Send email
+    return this.sendEmail({
+      to: args.to,
+      subject,
+      body,
+      from: args.from,
+      cc: args.cc,
+      bcc: args.bcc,
+      mimeType: "text/plain",
+    });
+  }
+
+  // ============ SCHEDULED SEND METHODS ============
+
+  async sendScheduledEmail(args) {
+    this.ensureAuthenticated();
+
+    const { to, subject, body, htmlBody, from, scheduledTime, timezone, cc, bcc } = args;
+
+    // Calculate delay
+    const scheduledDate = new Date(scheduledTime);
+    const now = new Date();
+    const delayMs = scheduledDate.getTime() - now.getTime();
+
+    if (delayMs <= 0) {
+      // Send immediately if scheduled time is in the past
+      return this.sendEmail({ to, subject, body, htmlBody, from, cc, bcc, mimeType: "text/plain" });
+    }
+
+    // Schedule the email
+    const emailId = `scheduled_${Date.now()}`;
+    const scheduledEmails = this.scheduledEmails || new Map();
+    this.scheduledEmails = scheduledEmails;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        await this.sendEmail({ to, subject, body, htmlBody, from, cc, bcc, mimeType: "text/plain" });
+        scheduledEmails.delete(emailId);
+        console.error(`Scheduled email sent: ${emailId}`);
+      } catch (error) {
+        console.error(`Failed to send scheduled email ${emailId}:`, error);
+      }
+    }, delayMs);
+
+    scheduledEmails.set(emailId, {
+      timeoutId,
+      to,
+      subject,
+      scheduledTime: scheduledDate.toISOString(),
+    });
+
+    return {
+      success: true,
+      emailId,
+      scheduledTime: scheduledDate.toISOString(),
+      message: `Email scheduled for ${scheduledDate.toISOString()}`,
+    };
   }
 
   async run() {
