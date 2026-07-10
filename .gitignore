@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Credentials and keys
+gcp-oauth.keys.json
+credentials.json
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
