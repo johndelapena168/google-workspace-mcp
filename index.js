@@ -256,6 +256,202 @@ class GoogleWorkspaceMCP {
           properties: {},
         },
       },
+      {
+        name: "list_emails",
+        description: "List emails in inbox, sent, or specific label",
+        inputSchema: {
+          type: "object",
+          properties: {
+            labelIds: {
+              type: "array",
+              items: { type: "string" },
+              default: ["INBOX"],
+              description: "Label IDs to list (e.g., ['INBOX'], ['SENT'], ['TRASH'])",
+            },
+            maxResults: {
+              type: "number",
+              default: 10,
+              description: "Maximum number of emails to return",
+            },
+            query: {
+              type: "string",
+              description: "Optional search query filter",
+            },
+          },
+        },
+      },
+      {
+        name: "modify_email",
+        description: "Add or remove labels from an email (mark read/unread, move to folder, archive, etc.)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            messageId: {
+              type: "string",
+              description: "The message ID to modify",
+            },
+            addLabelIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "Labels to add (e.g., ['IMPORTANT', 'Label_123'])",
+            },
+            removeLabelIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "Labels to remove (e.g., ['UNREAD', 'INBOX'])",
+            },
+          },
+          required: ["messageId"],
+        },
+      },
+      {
+        name: "delete_email",
+        description: "Permanently delete an email",
+        inputSchema: {
+          type: "object",
+          properties: {
+            messageId: {
+              type: "string",
+              description: "The message ID to delete",
+            },
+          },
+          required: ["messageId"],
+        },
+      },
+      {
+        name: "download_attachment",
+        description: "Download an email attachment to local filesystem",
+        inputSchema: {
+          type: "object",
+          properties: {
+            messageId: {
+              type: "string",
+              description: "The message ID containing the attachment",
+            },
+            attachmentId: {
+              type: "string",
+              description: "The attachment ID to download",
+            },
+            savePath: {
+              type: "string",
+              description: "Directory to save the file (defaults to current directory)",
+            },
+            filename: {
+              type: "string",
+              description: "Custom filename (optional, uses original if not provided)",
+            },
+          },
+          required: ["messageId", "attachmentId"],
+        },
+      },
+      {
+        name: "batch_modify_emails",
+        description: "Modify labels for multiple emails at once",
+        inputSchema: {
+          type: "object",
+          properties: {
+            messageIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of message IDs to modify",
+            },
+            addLabelIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "Labels to add",
+            },
+            removeLabelIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "Labels to remove",
+            },
+          },
+          required: ["messageIds"],
+        },
+      },
+      {
+        name: "batch_delete_emails",
+        description: "Permanently delete multiple emails",
+        inputSchema: {
+          type: "object",
+          properties: {
+            messageIds: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of message IDs to delete",
+            },
+          },
+          required: ["messageIds"],
+        },
+      },
+      {
+        name: "create_label",
+        description: "Create a new Gmail label",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Label name",
+            },
+            messageListVisibility: {
+              type: "string",
+              enum: ["show", "hide"],
+              default: "show",
+              description: "Whether to show in message list",
+            },
+            labelListVisibility: {
+              type: "string",
+              enum: ["labelShow", "labelShowIfUnread", "labelHide"],
+              default: "labelShow",
+              description: "Label visibility in label list",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "update_label",
+        description: "Update an existing Gmail label",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description: "Label ID to update",
+            },
+            name: {
+              type: "string",
+              description: "New label name",
+            },
+            messageListVisibility: {
+              type: "string",
+              enum: ["show", "hide"],
+              description: "Whether to show in message list",
+            },
+            labelListVisibility: {
+              type: "string",
+              enum: ["labelShow", "labelShowIfUnread", "labelHide"],
+              description: "Label visibility in label list",
+            },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "delete_label",
+        description: "Delete a Gmail label",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description: "Label ID to delete",
+            },
+          },
+          required: ["id"],
+        },
+      },
       // Calendar tools
       {
         name: "list_calendars",
@@ -741,6 +937,33 @@ class GoogleWorkspaceMCP {
         case "list_email_labels":
           return this.formatResult(await this.listEmailLabels());
 
+        case "list_emails":
+          return this.formatResult(await this.listEmails(args));
+
+        case "modify_email":
+          return this.formatResult(await this.modifyEmail(args));
+
+        case "delete_email":
+          return this.formatResult(await this.deleteEmail(args.messageId));
+
+        case "download_attachment":
+          return this.formatResult(await this.downloadAttachment(args));
+
+        case "batch_modify_emails":
+          return this.formatResult(await this.batchModifyEmails(args));
+
+        case "batch_delete_emails":
+          return this.formatResult(await this.batchDeleteEmails(args));
+
+        case "create_label":
+          return this.formatResult(await this.createLabel(args));
+
+        case "update_label":
+          return this.formatResult(await this.updateLabel(args));
+
+        case "delete_label":
+          return this.formatResult(await this.deleteLabel(args.id));
+
         case "list_calendars":
           return this.formatResult(await this.listCalendars());
 
@@ -988,6 +1211,192 @@ class GoogleWorkspaceMCP {
     });
 
     return response.data.labels || [];
+  }
+
+  async listEmails(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.gmail.users.messages.list({
+      userId: "me",
+      labelIds: args.labelIds || ["INBOX"],
+      maxResults: args.maxResults || 10,
+      q: args.query,
+    });
+
+    const messages = response.data.messages || [];
+
+    // Fetch full message details
+    const detailedMessages = await Promise.all(
+      messages.map(async (msg) => {
+        const full = await this.gmail.users.messages.get({
+          userId: "me",
+          id: msg.id,
+          format: "metadata",
+          metadataHeaders: ["From", "To", "Subject", "Date"],
+        });
+        return {
+          id: full.data.id,
+          threadId: full.data.threadId,
+          snippet: full.data.snippet,
+          headers: full.data.payload.headers,
+          labelIds: full.data.labelIds,
+        };
+      })
+    );
+
+    return detailedMessages;
+  }
+
+  async modifyEmail(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.gmail.users.messages.modify({
+      userId: "me",
+      id: args.messageId,
+      requestBody: {
+        addLabelIds: args.addLabelIds || [],
+        removeLabelIds: args.removeLabelIds || [],
+      },
+    });
+
+    return { success: true, messageId: response.data.id };
+  }
+
+  async deleteEmail(messageId) {
+    this.ensureAuthenticated();
+
+    await this.gmail.users.messages.delete({
+      userId: "me",
+      id: messageId,
+    });
+
+    return { success: true, message: "Email deleted permanently" };
+  }
+
+  async downloadAttachment(args) {
+    this.ensureAuthenticated();
+
+    // Get attachment data
+    const response = await this.gmail.users.messages.attachments.get({
+      userId: "me",
+      messageId: args.messageId,
+      id: args.attachmentId,
+    });
+
+    const data = response.data.data;
+    const buffer = Buffer.from(data, "base64url");
+
+    // Get message to find original filename
+    const message = await this.gmail.users.messages.get({
+      userId: "me",
+      id: args.messageId,
+      format: "full",
+    });
+
+    // Find attachment filename from parts
+    let filename = args.filename || "attachment";
+    const findAttachment = (parts) => {
+      for (const part of parts || []) {
+        if (part.body.attachmentId === args.attachmentId) {
+          return part.filename;
+        }
+        if (part.parts) {
+          const found = findAttachment(part.parts);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const originalFilename = findAttachment(message.data.payload.parts);
+    if (originalFilename) filename = originalFilename;
+
+    // Save to file
+    const savePath = args.savePath || process.cwd();
+    const filePath = path.join(savePath, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    return {
+      success: true,
+      filePath,
+      filename,
+      size: buffer.length,
+    };
+  }
+
+  async batchModifyEmails(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.gmail.users.messages.batchModify({
+      userId: "me",
+      requestBody: {
+        ids: args.messageIds,
+        addLabelIds: args.addLabelIds || [],
+        removeLabelIds: args.removeLabelIds || [],
+      },
+    });
+
+    return {
+      success: true,
+      message: `Modified ${args.messageIds.length} emails`,
+    };
+  }
+
+  async batchDeleteEmails(args) {
+    this.ensureAuthenticated();
+
+    await this.gmail.users.messages.batchDelete({
+      userId: "me",
+      requestBody: {
+        ids: args.messageIds,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Deleted ${args.messageIds.length} emails`,
+    };
+  }
+
+  async createLabel(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.gmail.users.labels.create({
+      userId: "me",
+      requestBody: {
+        name: args.name,
+        messageListVisibility: args.messageListVisibility || "show",
+        labelListVisibility: args.labelListVisibility || "labelShow",
+      },
+    });
+
+    return response.data;
+  }
+
+  async updateLabel(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.gmail.users.labels.update({
+      userId: "me",
+      id: args.id,
+      requestBody: {
+        name: args.name,
+        messageListVisibility: args.messageListVisibility,
+        labelListVisibility: args.labelListVisibility,
+      },
+    });
+
+    return response.data;
+  }
+
+  async deleteLabel(id) {
+    this.ensureAuthenticated();
+
+    await this.gmail.users.labels.delete({
+      userId: "me",
+      id: id,
+    });
+
+    return { success: true, message: "Label deleted" };
   }
 
   // ============ CALENDAR METHODS ============
