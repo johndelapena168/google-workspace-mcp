@@ -16,20 +16,27 @@ A Model Context Protocol (MCP) server for Google Workspace integration with **se
 ## 🚀 Features
 
 ### Gmail
-- ✅ **Send emails** with dynamic send-as alias support
-- ✅ **List aliases** - auto-discover all configured send-as addresses
+- ✅ **Send emails** - with subject, content, attachments, and recipients
+- ✅ **Send-As Alias Support** - dynamic discovery of all configured aliases
 - ✅ **Email templates** - save and reuse templates with variables
 - ✅ **Scheduled send** - schedule emails for later delivery
 - ✅ **Draft emails** - create drafts without sending
+- ✅ **Read emails** - get full email content with enhanced attachment display
+- ✅ **List emails** - view inbox, sent, or custom labels
 - ✅ **Search emails** - using Gmail search syntax
-- ✅ **Read emails** - get full email content
+- ✅ **Modify emails** - mark read/unread, move to labels/folders
+- ✅ **Delete emails** - permanent deletion
+- ✅ **Download attachments** - save attachments to local filesystem
 - ✅ **Label management** - create, update, delete labels
 - ✅ **Batch operations** - process multiple emails efficiently
-- ✅ **Attachment support** - send and receive attachments
+- ✅ **Full attachment support** - send and receive file attachments
+- ✅ **HTML emails** - multipart messages with both HTML and plain text
+- ✅ **International characters** - full support in subject and content
 
 ### Google Calendar
-- ✅ **Create events** - with attendees, reminders, and location
-- ✅ **List events** - view upcoming events
+- ✅ **Create events** - with title, time, description, location, attendees
+- ✅ **Get event** - retrieve event details by ID
+- ✅ **List events** - view events within specified time range
 - ✅ **Update events** - modify existing events
 - ✅ **Delete events** - remove events
 - ✅ **Search events** - find events by query
@@ -252,6 +259,92 @@ The MCP will be automatically detected when installed globally.
     "timeMin": "2026-07-15T09:00:00Z",
     "timeMax": "2026-07-15T17:00:00Z",
     "calendars": ["primary", "work@example.com"]
+  }
+}
+```
+
+### Get Event by ID
+
+```json
+{
+  "tool": "get_event",
+  "arguments": {
+    "calendarId": "primary",
+    "eventId": "abc123def456"
+  }
+}
+```
+
+### List Emails in Inbox
+
+```json
+{
+  "tool": "list_emails",
+  "arguments": {
+    "labelIds": ["INBOX"],
+    "maxResults": 10
+  }
+}
+```
+
+### Mark Email as Read
+
+```json
+{
+  "tool": "modify_email",
+  "arguments": {
+    "messageId": "18a1b2c3d4e5f6789",
+    "removeLabelIds": ["UNREAD"]
+  }
+}
+```
+
+### Move Email to Label
+
+```json
+{
+  "tool": "modify_email",
+  "arguments": {
+    "messageId": "18a1b2c3d4e5f6789",
+    "addLabelIds": ["Label_123"],
+    "removeLabelIds": ["INBOX"]
+  }
+}
+```
+
+### Download Attachment
+
+```json
+{
+  "tool": "download_attachment",
+  "arguments": {
+    "messageId": "18a1b2c3d4e5f6789",
+    "attachmentId": "ANGjdJ8z7_OQ",
+    "savePath": "C:/Users/Downloads"
+  }
+}
+```
+
+### Create New Label
+
+```json
+{
+  "tool": "create_label",
+  "arguments": {
+    "name": "Client Projects",
+    "messageListVisibility": "show",
+    "labelListVisibility": "labelShow"
+  }
+}
+```
+
+### Batch Delete Emails
+
+```json
+{
+  "tool": "batch_delete_emails",
+  "arguments": {
+    "messageIds": ["msg1", "msg2", "msg3"]
   }
 }
 ```
