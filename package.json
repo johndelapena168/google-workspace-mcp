@@ -1,7 +1,7 @@
 {
   "name": "google-workspace-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for Google Workspace (Gmail + Calendar) with send-as alias support, email templates, and scheduled send",
+  "version": "1.1.0",
+  "description": "MCP server for Google Workspace (Gmail + Calendar) with send-as alias support, email templates, scheduled send, attachments, batch operations, and full feature parity",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -19,7 +19,11 @@
     "send-as",
     "alias",
     "email-templates",
-    "scheduled-send"
+    "scheduled-send",
+    "attachments",
+    "batch-operations",
+    "label-management",
+    "oauth2"
   ],
   "author": "John Dela Pena",
   "license": "MIT",
