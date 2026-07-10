@@ -1,6 +1,11 @@
-# Google Workspace MCP Server
+# GWS MCP - Google Workspace MCP Server
 
 A Model Context Protocol (MCP) server for Google Workspace integration with **send-as alias support**, email templates, and scheduled send. This server enables AI assistants to manage Gmail and Google Calendar through natural language interactions.
+
+### Why `gws-mcp`?
+- **Unique**: Only MCP with send-as alias support
+- **Unified**: Gmail + Calendar in one package
+- **Full Featured**: 28 tools with complete API coverage
 
 ## ✨ Why This MCP?
 
@@ -49,7 +54,7 @@ A Model Context Protocol (MCP) server for Google Workspace integration with **se
 ### Using npm (Recommended)
 
 ```bash
-npm install -g google-workspace-mcp
+npm install -g gws-mcp
 ```
 
 ### Manual Installation
@@ -89,7 +94,7 @@ Place your `gcp-oauth.keys.json` in one of these locations:
 Then run:
 
 ```bash
-npx google-workspace-mcp auth
+npx gws-mcp auth
 ```
 
 This will:
@@ -108,7 +113,7 @@ Add to your Claude Desktop configuration (`claude_desktop_config.json`):
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["google-workspace-mcp"]
+      "args": ["gws-mcp"]
     }
   }
 }
@@ -123,7 +128,7 @@ Add to your Cursor settings:
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["google-workspace-mcp"]
+      "args": ["gws-mcp"]
     }
   }
 }
