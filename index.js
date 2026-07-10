@@ -489,6 +489,25 @@ class GoogleWorkspaceMCP {
         },
       },
       {
+        name: "get_event",
+        description: "Get event details by event ID",
+        inputSchema: {
+          type: "object",
+          properties: {
+            calendarId: {
+              type: "string",
+              default: "primary",
+              description: "Calendar ID",
+            },
+            eventId: {
+              type: "string",
+              description: "Event ID to retrieve",
+            },
+          },
+          required: ["eventId"],
+        },
+      },
+      {
         name: "create_event",
         description: "Create a calendar event",
         inputSchema: {
@@ -970,6 +989,9 @@ class GoogleWorkspaceMCP {
         case "list_events":
           return this.formatResult(await this.listEvents(args));
 
+        case "get_event":
+          return this.formatResult(await this.getEvent(args));
+
         case "create_event":
           return this.formatResult(await this.createEvent(args));
 
@@ -1441,6 +1463,17 @@ class GoogleWorkspaceMCP {
     });
 
     return response.data.items || [];
+  }
+
+  async getEvent(args) {
+    this.ensureAuthenticated();
+
+    const response = await this.calendar.events.get({
+      calendarId: args.calendarId || "primary",
+      eventId: args.eventId,
+    });
+
+    return response.data;
   }
 
   async createEvent(args) {
